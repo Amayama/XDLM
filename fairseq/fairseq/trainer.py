@@ -1034,13 +1034,11 @@ class Trainer(object):
         extra_kwargs = {}
         if self.cfg.ema.store_ema and getattr(self.task, "uses_ema", False):
             extra_kwargs["ema_model"] = self.ema.get_model()
-
         with torch.no_grad():
             self.model.eval()
             self.criterion.eval()
 
             sample, is_dummy_batch = self._prepare_sample(sample)
-
             try:
                 _loss, sample_size, logging_output = self.task.valid_step(
                     sample, self.model, self.criterion, **extra_kwargs
@@ -1079,7 +1077,7 @@ class Trainer(object):
         if self.tpu:
             logging_outputs = self._xla_markstep_and_send_to_cpu(logging_outputs)
         logging_output = self._reduce_and_log_stats(logging_outputs, sample_size)
-
+        del sample
         return logging_output
 
     def zero_grad(self):
