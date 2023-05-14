@@ -122,10 +122,12 @@ class DiffusionGenerator(object):
         # TODO: better encoder inputs?
         src_tokens = sample["net_input"]["src_tokens"]
         src_lengths = sample["net_input"]["src_lengths"]
+        src_position_emb=sample['net_input']['src_position_emb']
+        src_language_emb=sample['net_input']['src_language_emb']
         bsz, src_len = src_tokens.size()
 
         # initialize
-        encoder_out = model.forward_encoder([src_tokens, src_lengths])
+        encoder_out = model.forward_encoder([src_tokens, src_position_emb,src_language_emb,src_lengths,])
         prev_decoder_out = model.initialize_output_tokens(encoder_out, src_tokens)
 
         if self.beam_size > 1:

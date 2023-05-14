@@ -88,6 +88,7 @@ if ! "$GENERATE_ONLY"; then
         --keep-interval-updates 10 \
         --keep-last-epochs 2 \
         --max-tokens 512 \
+        --max-tokens-valid=1024 \
         $DATA_SPECIFIC_ARGS $SPECIFIC_ARGS
 fi
 
