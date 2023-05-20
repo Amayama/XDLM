@@ -25,8 +25,7 @@ def collate(
 ):
     if len(samples) == 0:
         return {}
-
-    def merge(key, left_pad, move_eos_to_beginning=False, pad_to_length=None):
+    def merge(key, left_pad,pad_idx, move_eos_to_beginning=False, pad_to_length=None):
         return data_utils.collate_tokens(
             [s[key] for s in samples],
             pad_idx,
@@ -66,6 +65,7 @@ def collate(
     id = torch.LongTensor([s["id"] for s in samples])
     src_tokens = merge(
         "source",
+        pad_idx=pad_idx,
         left_pad=left_pad_source,
         pad_to_length=pad_to_length["source"] if pad_to_length is not None else None,
     )
@@ -76,11 +76,13 @@ def collate(
     #logger.info(samples[0]['position_emb'])
     src_position_emb = merge(
         "position_emb",
+        pad_idx=0,
         left_pad=left_pad_source,
         pad_to_length=pad_to_length["source"] if pad_to_length is not None else None,
     )
     src_language_emb = merge(
         "language_emb",
+        pad_idx=0,
         left_pad=left_pad_source,
         pad_to_length=pad_to_length["source"] if pad_to_length is not None else None,
     )
@@ -93,6 +95,7 @@ def collate(
     if samples[0].get("target", None) is not None:
         target = merge(
             "target",
+            pad_idx=pad_idx,
             left_pad=left_pad_target,
             pad_to_length=pad_to_length["target"]
             if pad_to_length is not None
@@ -105,12 +108,13 @@ def collate(
         ntokens = tgt_lengths.sum().item()
 
         if samples[0].get("prev_output_tokens", None) is not None:
-            prev_output_tokens = merge("prev_output_tokens", left_pad=left_pad_target)
+            prev_output_tokens = merge("prev_output_tokens",pad_idx=pad_idx, left_pad=left_pad_target)
         elif input_feeding:
             # we create a shifted version of targets for feeding the
             # previous output token(s) into the next decoder step
             prev_output_tokens = merge(
                 "target",
+                pad_idx=pad_idx,
                 left_pad=left_pad_target,
                 move_eos_to_beginning=True,
                 pad_to_length=pad_to_length["target"]
@@ -131,6 +135,7 @@ def collate(
         },
         "target": target,
     }
+    print(batch)
     if prev_output_tokens is not None:
         batch["net_input"]["prev_output_tokens"] = prev_output_tokens.index_select(
             0, sort_order
@@ -406,8 +411,8 @@ class LanguagePairDataset(FairseqDataset):
         # 在这里加入xlm
         final_tgt= torch.cat([src_item,tgt_item])
         final_tgt_len=src_item.shape[0]+tgt_item.shape[0]
-        src_pos=torch.arange(src_item.shape[0])
-        tgt_pos=torch.arange(tgt_item.shape[0])
+        src_pos=torch.arange(1,src_item.shape[0]+1)
+        tgt_pos=torch.arange(1,tgt_item.shape[0]+1)
         final_pos=torch.cat([src_pos,tgt_pos])
         final_lang= torch.zeros(final_tgt_len)
         final_lang[:src_item.shape[0]]=1
