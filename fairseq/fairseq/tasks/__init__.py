@@ -115,7 +115,6 @@ def import_tasks(tasks_dir, namespace):
         ):
             task_name = file[: file.find(".py")] if file.endswith(".py") else file
             importlib.import_module(namespace + "." + task_name)
-
             # expose `task_parser` for sphinx
             if task_name in TASK_REGISTRY:
                 parser = argparse.ArgumentParser(add_help=False)
