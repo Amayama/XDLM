@@ -135,7 +135,6 @@ def _main(cfg: DictConfig, output_file):
     logger = logging.getLogger("fairseq_cli.generate")
 
     utils.import_user_module(cfg.common)
-
     if cfg.dataset.max_tokens is None and cfg.dataset.batch_size is None:
         cfg.dataset.max_tokens = 12000
     logger.info(cfg)

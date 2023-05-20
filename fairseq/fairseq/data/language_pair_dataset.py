@@ -411,7 +411,7 @@ class LanguagePairDataset(FairseqDataset):
         final_pos=torch.cat([src_pos,tgt_pos])
         final_lang= torch.zeros(final_tgt_len)
         final_lang[:src_item.shape[0]]=1
-        final_lang[src_item.shape[0]:tgt_item.shape[0]]=2
+        final_lang[src_item.shape[0]:final_tgt_len]=2
         masked_src, real_src, mask_pred=self.mask_out(final_tgt, final_tgt_len)
         #logger.info(masked_src)
         example = {
