@@ -61,4 +61,6 @@ checkpoints/
 
 data-bin/
 wmt14_ende/
+fairseq/wiki_en
+wiki_en/
 fairseq/wmt14_ende
