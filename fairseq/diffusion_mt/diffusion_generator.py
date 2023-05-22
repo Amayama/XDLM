@@ -128,7 +128,8 @@ class DiffusionGenerator(object):
 
         # initialize
         encoder_out = model.forward_encoder([src_tokens, src_position_emb,src_language_emb,src_lengths,])
-        prev_decoder_out = model.initialize_output_tokens(encoder_out, src_tokens)
+        # TODO: ADD PRETRAIN PARAMS!
+        prev_decoder_out = model.initialize_output_tokens(encoder_out, src_tokens,src_lengths,True)
 
         if self.beam_size > 1:
             assert (

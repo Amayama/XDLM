@@ -171,6 +171,12 @@ class DiffusionTransformerModel(FairseqNATModel):
             type=float,
             help="weights on the length prediction loss",
         )
+        parser.add_argument(
+            '--in-pretrain',
+            action='store_true',
+            default=True,
+            help="define whether predict the output"
+        )
 
     @classmethod
     def build_encoder(cls, args, src_dict, embed_tokens):
@@ -214,12 +220,16 @@ class DiffusionTransformerModel(FairseqNATModel):
         # encoding
         encoder_out = self.encoder(src_tokens,src_position_emb,src_language_emb,src_lengths=src_lengths, **kwargs)
         # length prediction
-        length_out = self.decoder.forward_length(
-            normalize=False, encoder_out=encoder_out
-        )
-        length_tgt = self.decoder.forward_length_prediction(
-            length_out, encoder_out, tgt_tokens
-        )
+        # TODO:测试完记得回来开这个参数！
+        if not self.args.in_pretrain:
+            length_out = self.decoder.forward_length(
+                normalize=False, encoder_out=encoder_out
+            )
+            length_tgt = self.decoder.forward_length_prediction(
+                length_out, encoder_out, tgt_tokens
+            )
+        else:
+            length_tgt=src_lengths
 
         if self.args.diffusion_type in ['absorbing', 'reparam-absorbing']:
             # Absorbing diffusion
@@ -300,10 +310,16 @@ class DiffusionTransformerModel(FairseqNATModel):
         diffusion_dict["decoder_outputs"] = decoder_outputs
        
         diffusion_dict["x_0"] = tgt_tokens
-        length_dict = {
-            "length_out"  : length_out,
-            "length_tgt"  : length_tgt,
-        }
+        if self.args.in_pretrain:
+            length_dict = {
+                "length_out"  : src_lengths,
+                "length_tgt"  : length_tgt,
+            }
+        else:
+            length_dict = {
+                "length_out"  : length_out,
+                "length_tgt"  : length_tgt,
+            }
         return diffusion_dict, length_dict
 
     def forward(self, sample, **kwargs):
@@ -323,18 +339,25 @@ class DiffusionTransformerModel(FairseqNATModel):
         #     self.schedule_sampler.update_with_local_losses(
         #         t, losses["squared_kl_step"].detach()
         #     )
-
-        loss_dict = {
-            "word_ins": {
-                "loss": diffusion_losses["diffusion_loss"],
-                "nll_loss": diffusion_losses.get("diffusion_nll_loss", None),
-            },
-            "length": {
-                "out": length_dict["length_out"],
-                "tgt": length_dict["length_tgt"],
-                "factor": self.decoder.length_loss_factor,
-            },
-        }
+        if not self.args.in_pretrain:
+            loss_dict = {
+                "word_ins": {
+                    "loss": diffusion_losses["diffusion_loss"],
+                    "nll_loss": diffusion_losses.get("diffusion_nll_loss", None),
+                },
+                "length": {
+                    "out": length_dict["length_out"],
+                    "tgt": length_dict["length_tgt"],
+                    "factor": self.decoder.length_loss_factor,
+                },
+            }
+        else:
+            loss_dict = {
+                "word_ins": {
+                    "loss": diffusion_losses["diffusion_loss"],
+                    "nll_loss": diffusion_losses.get("diffusion_nll_loss", None),
+                },
+            }
         return loss_dict
 
     def forward_decoder(self, decoder_out, encoder_out, **kwargs):
@@ -410,12 +433,16 @@ class DiffusionTransformerModel(FairseqNATModel):
         initial_output_tokens.scatter_(1, length_tgt[:, None] - 1, self.eos)
         return initial_output_tokens
     
-    def initialize_output_tokens(self, encoder_out, src_tokens):
+    def initialize_output_tokens(self, encoder_out, src_tokens, src_length, in_pretrain):
         # length prediction
-        length_tgt = self.decoder.forward_length_prediction(
-            self.decoder.forward_length(normalize=True, encoder_out=encoder_out),
-            encoder_out=encoder_out,
-        )
+        # TODO: Renew the prev as <unk> series if needed
+        if not in_pretrain:
+            length_tgt = self.decoder.forward_length_prediction(
+                self.decoder.forward_length(normalize=True, encoder_out=encoder_out),
+                encoder_out=encoder_out,
+            )
+        else:
+            length_tgt=src_length
         # <bos>, <eos>, and at least one token.
         # max_length = length_tgt.clamp_(min=2).max()
         max_length = length_tgt.clamp_(min=3).max()

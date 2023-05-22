@@ -17,7 +17,7 @@ def collate(
     samples,
     pad_idx,
     eos_idx,
-    left_pad_source=True,
+    left_pad_source=False,
     left_pad_target=False,
     input_feeding=True,
     pad_to_length=None,
@@ -135,7 +135,6 @@ def collate(
         },
         "target": target,
     }
-    print(batch)
     if prev_output_tokens is not None:
         batch["net_input"]["prev_output_tokens"] = prev_output_tokens.index_select(
             0, sort_order
