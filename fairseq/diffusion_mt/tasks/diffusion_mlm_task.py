@@ -26,8 +26,8 @@ from fairseq.data import (
 )
 from fairseq.data.encoders.utils import get_whole_word_mask
 from fairseq.data.shorten_dataset import maybe_shorten_dataset
-from fairseq.dataclass import FairseqDataclass
-from fairseq.tasks import FairseqTask, register_task
+from fairseq.dataclass import FairseqDataclass, MaskedLMDataClass
+from fairseq.tasks import FairseqTask, register_task, MaskedLMTask
 from fairseq.tasks.language_modeling import SAMPLE_BREAK_MODE_CHOICES, SHORTEN_METHOD_CHOICES
 
 
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class DiffusionMaskedLMConfig(FairseqDataclass):
+class DiffusionMaskedLMConfig(MaskedLMDataClass):
     data: str = field(
         default=MISSING,
         metadata={
@@ -102,7 +102,7 @@ class DiffusionMaskedLMConfig(FairseqDataclass):
 
 
 @register_task("diffusion_masked_lm", dataclass=DiffusionMaskedLMConfig)
-class DiffusionMLMTask(FairseqTask):
+class DiffusionMLMTask(MaskedLMTask):
 
     cfg: DiffusionMaskedLMConfig
 

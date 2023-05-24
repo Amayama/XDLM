@@ -41,8 +41,8 @@ if [[ $DATASET == "iwslt" ]]; then
     DATA_TAG=data-bin/iwslt14.tokenized.de-en
     ARCH=diffusion_transformer_iwslt
     DATA_SPECIFIC_ARGS="--warmup-updates 30000 --max-update 300000 --max-tokens 4096 --update-freq 1"
-elif [[ $DATASET == "wmt14" ]]; then
-    DATA_TAG=data-bin/wmt14_ende
+elif [[ $DATASET == "wiki_en" ]]; then
+    DATA_TAG=data-bin/wiki_en
     ARCH=diffusion_transformer_wmt
     NUM_GPUS=$(echo $CUDA_VISIBLE_DEVICES | awk 'BEGIN{FS=","};{print NF}')
     UPDATE_FREQ=$(( 32 / $NUM_GPUS )) # maintain ~128k tokens
@@ -57,7 +57,7 @@ else
     DATA_TAG=null
 fi
 
-TASK=diffusion_translation
+TASK=diffusion_masked_lm
 CRITERION=diffusion_loss
 CKPT_DIR=checkpoints/$DATASET"_"$MODEL"_checkpoints_"$SUFFIX
 SPECIFIC_ARGS="
@@ -77,8 +77,8 @@ if ! "$GENERATE_ONLY"; then
         --lr-scheduler inverse_sqrt --warmup-init-lr 1e-07 \
         --label-smoothing 0.1 \
         --dropout 0.3 --weight-decay 0.01 \
-        --eval-bleu \
-        --eval-bleu-args '{"iter_decode_max_iter": 10, "iter_decode_force_max_iter": true, "temperature": 0.1}' \
+#        --eval-bleu \
+#        --eval-bleu-args '{"iter_decode_max_iter": 10, "iter_decode_force_max_iter": true, "temperature": 0.1}' \
         --decoder-learned-pos \
         --encoder-learned-pos \
         --apply-bert-init \
