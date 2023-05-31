@@ -171,10 +171,11 @@ class DiffusionTransformerModel(FairseqNATModel):
             type=float,
             help="weights on the length prediction loss",
         )
+        # TODO: in_pretrain here
         parser.add_argument(
             '--in-pretrain',
             action='store_true',
-            default=True,
+            default=False,
             help="define whether predict the output"
         )
 
@@ -228,8 +229,13 @@ class DiffusionTransformerModel(FairseqNATModel):
             length_tgt = self.decoder.forward_length_prediction(
                 length_out, encoder_out, tgt_tokens
             )
+            tgt_language_emb=torch.zeros((length_tgt.shape[0],tgt_tokens.shape[1]))
+            tgt_language_emb[torch.arange(length_tgt.shape[0])[:, None], torch.arange(tgt_language_emb.shape[1])] = 2
+            tgt_language_emb=tgt_language_emb.long()
+            tgt_language_emb=utils.move_to_cuda(tgt_language_emb)
         else:
             length_tgt=src_lengths
+            tgt_language_emb=src_language_emb.long()
 
         if self.args.diffusion_type in ['absorbing', 'reparam-absorbing']:
             # Absorbing diffusion
@@ -300,11 +306,12 @@ class DiffusionTransformerModel(FairseqNATModel):
             }
         else:
             raise NotImplementedError
-
         decoder_outputs = self.decoder(
             normalize=False,
             prev_output_tokens=diffusion_dict["x_t"],
             encoder_out=encoder_out,
+            tgt_position=tgt_language_emb,
+            tgt_language=tgt_language_emb,
             t=diffusion_dict["t"],
         ) # a tuple ([B, N, C], None) or ([B, N, C], [B, N])
         diffusion_dict["decoder_outputs"] = decoder_outputs
@@ -360,13 +367,15 @@ class DiffusionTransformerModel(FairseqNATModel):
             }
         return loss_dict
 
-    def forward_decoder(self, decoder_out, encoder_out, **kwargs):
+    def forward_decoder(self, decoder_out, encoder_out, pos_emb,lang_emb,**kwargs):
         if self.diffusion is None:
             raise NotImplementedError("No diffusion decoding function is provided.")
         def denoising_fn(x_t, t):
             return self.decoder(
                 prev_output_tokens=x_t,
                 t=t,
+                tgt_position=pos_emb,
+                tgt_language=lang_emb,
                 normalize=False,
                 encoder_out=encoder_out,
             )

@@ -616,6 +616,7 @@ class DiffusionTransformerDecoderBase(FairseqIncrementalDecoder):
         self.output_embed_dim = cfg.decoder.output_dim
 
         self.padding_idx = embed_tokens.padding_idx
+        self.padding_pos_idx = 0
         self.max_target_positions = cfg.max_target_positions
 
         self.embed_tokens = embed_tokens
@@ -640,12 +641,13 @@ class DiffusionTransformerDecoderBase(FairseqIncrementalDecoder):
             PositionalEmbedding(
                 self.max_target_positions,
                 embed_dim,
-                self.padding_idx,
+                self.padding_pos_idx,
                 learned=cfg.decoder.learned_pos,
             )
             if not cfg.no_token_positional_embeddings
             else None
         )
+        self.embed_language=nn.Embedding(cfg.num_languages+1,cfg.encoder.embed_dim)
         if cfg.layernorm_embedding:
             self.layernorm_embedding = LayerNorm(embed_dim, export=cfg.export)
         else:
@@ -895,7 +897,7 @@ class DiffusionTransformerDecoder(DiffusionTransformerDecoderBase):
         self.bos = dictionary.bos()
         self.unk = dictionary.unk()
         self.eos = dictionary.eos()
-
+        self.mask = dictionary.mask()
         self.encoder_embed_dim = args.encoder_embed_dim
         self.sg_length_pred = getattr(args, "sg_length_pred", False)
         self.pred_length_offset = getattr(args, "pred_length_offset", False)
@@ -910,7 +912,7 @@ class DiffusionTransformerDecoder(DiffusionTransformerDecoderBase):
         )
         self.concat_pe = args.decoder_concat_pe
         if self.concat_pe:
-            self.pe_fusion_ffn = nn.Linear(2 * args.decoder_embed_dim, args.decoder_embed_dim)
+            self.pe_fusion_ffn = nn.Linear(3 * args.decoder_embed_dim, args.decoder_embed_dim)
         
         self.use_rpe = args.decoder_use_rpe
         self.relative_attention_num_buckets = args.decoder_rpe_num_buckets # 64
@@ -933,9 +935,11 @@ class DiffusionTransformerDecoder(DiffusionTransformerDecoderBase):
         )
 
     @ensemble_decoder
-    def forward(self, normalize, encoder_out, prev_output_tokens, step=0, t=None, **unused):
+    def forward(self, normalize, encoder_out, prev_output_tokens, tgt_position, tgt_language, step=0, t=None, **unused):
         features, _ = self.extract_features(
             prev_output_tokens,
+            tgt_position,
+            tgt_language,
             encoder_out=encoder_out,
             embedding_copy=(step == 0) & self.src_embedding_copy,
             t=t,
@@ -961,9 +965,11 @@ class DiffusionTransformerDecoder(DiffusionTransformerDecoderBase):
     def extract_features(
         self,
         prev_output_tokens,
+        tgt_position,
+        tgt_language,
         encoder_out=None,
         early_exit=None,
-        embedding_copy=False,
+        embedding_copy=False,        
         t=None,
         **unused
     ):
@@ -1002,7 +1008,7 @@ class DiffusionTransformerDecoder(DiffusionTransformerDecoderBase):
             )
 
         else:
-            x, decoder_padding_mask = self.forward_embedding(prev_output_tokens, t)
+            x, decoder_padding_mask = self.forward_embedding(prev_output_tokens,  tgt_position, tgt_language, t)
         # B x T x C -> T x B x C
         x = x.transpose(0, 1)
         attn = None
@@ -1056,7 +1062,8 @@ class DiffusionTransformerDecoder(DiffusionTransformerDecoderBase):
 
         return x, {"attn": attn, "inner_states": inner_states}
 
-    def forward_embedding(self, prev_output_tokens, t, states=None):
+    def forward_embedding(self, prev_output_tokens, tgt_pos_emb, tgt_lang_emb, t,  states=None):
+        # 在这里改decoder的pos/lang embedding
         # embed positions
         positions = (
             self.embed_positions(prev_output_tokens)
@@ -1074,12 +1081,12 @@ class DiffusionTransformerDecoder(DiffusionTransformerDecoderBase):
         
         # time step embeddings
         time_embed = self.time_pos_emb(t) # B x 1 x C
-
+        lang_emb=self.embed_language(tgt_lang_emb)
         if positions is not None:
             if self.concat_pe:
-                x = self.pe_fusion_ffn(torch.cat((x, positions), dim=-1)) + time_embed
+                x = self.pe_fusion_ffn(torch.cat((x, positions,lang_emb), dim=-1)) + time_embed
             else:
-                x = x + positions + time_embed
+                x = x + positions + time_embed+lang_emb
         x = self.dropout_module(x)
 
         decoder_padding_mask = prev_output_tokens.eq(self.padding_idx)

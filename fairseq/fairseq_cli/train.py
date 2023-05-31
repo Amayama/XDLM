@@ -295,13 +295,16 @@ def train(
     #logger.info("Here it is!")
     logger.info("Start iterating over samples")
     for i, samples in tqdm(enumerate(progress)):
+        valid_losses, should_stop = validate_and_save(
+            cfg, trainer, task, epoch_itr, valid_subsets, True
+        )
         with metrics.aggregate("train_inner"), torch.autograd.profiler.record_function(
             "train_step-%d" % i
         ):
             log_output = trainer.train_step(samples)
 
         if log_output is not None:  # not OOM, overflow, ...
-            # log mid-epoch stats
+            # log mid-epoch stats 
             num_updates = trainer.get_num_updates()
             if num_updates % cfg.common.log_interval == 0:
                 stats = get_training_stats(metrics.get_smoothed_values("train_inner"))
@@ -510,7 +513,6 @@ def cli_main(
     parser = options.get_training_parser()
     args = options.parse_args_and_arch(parser, modify_parser=modify_parser)
     args.num_languages=2
-    args.max_length=512
     cfg = convert_namespace_to_omegaconf(args)
     if cfg.common.use_plasma_view:
         server = PlasmaStore(path=cfg.common.plasma_path)

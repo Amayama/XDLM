@@ -129,8 +129,17 @@ class DiffusionGenerator(object):
         # initialize
         encoder_out = model.forward_encoder([src_tokens, src_position_emb,src_language_emb,src_lengths,])
         # TODO: ADD PRETRAIN PARAMS!
-        prev_decoder_out = model.initialize_output_tokens(encoder_out, src_tokens,src_lengths,True)
-
+        # in_pretrain here
+        prev_decoder_out = model.initialize_output_tokens(encoder_out, src_tokens,src_lengths,False)
+        # TODO: 回来改这个参数
+        if True:
+            tgt_language_emb=torch.zeros(prev_decoder_out[0].shape)
+            tgt_language_emb=tgt_language_emb.fill_(2)
+            tgt_language_emb=tgt_language_emb.long()
+            tgt_language_emb=utils.move_to_cuda(tgt_language_emb)
+        else:
+            length_tgt=src_lengths
+            tgt_language_emb=src_language_emb.long()
         if self.beam_size > 1:
             assert (
                 model.allow_length_beam
@@ -196,7 +205,7 @@ class DiffusionGenerator(object):
             )
 
             decoder_out = model.forward_decoder(
-                prev_decoder_out, encoder_out, **decoder_options
+                prev_decoder_out, encoder_out,tgt_language_emb,tgt_language_emb, **decoder_options
             )
 
             if self.adaptive:

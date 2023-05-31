@@ -212,6 +212,7 @@ class DiffusionTransformerEncoderBase(FairseqEncoder):
 
         embed_dim = embed_tokens.embedding_dim
         self.padding_idx = embed_tokens.padding_idx
+        self.padding_pos_idx = 0
         self.max_source_positions = cfg.max_source_positions
 
         self.embed_tokens = embed_tokens
@@ -220,7 +221,7 @@ class DiffusionTransformerEncoderBase(FairseqEncoder):
             PositionalEmbedding(
                 cfg.max_source_positions,
                 embed_dim,
-                self.padding_idx,
+                self.padding_pos_idx,
                 learned=cfg.encoder.learned_pos,
             )
             if not cfg.no_token_positional_embeddings
@@ -287,14 +288,14 @@ class DiffusionTransformerEncoderBase(FairseqEncoder):
         # embed tokens and positions
         if token_embedding is None:
             token_embedding = self.embed_tokens(src_tokens)
-        position_embedding=self.embed_positions(src_position_emb)
+        position_embedding=self.embed_positions(src_tokens)
         langauge_embedding=self.embed_language(src_language_emb)
         x = embed = self.embed_scale * token_embedding
         if self.embed_positions is not None:
             if self.concat_pe:
                 x = self.pe_fusion_ffn(torch.cat((embed,position_embedding, langauge_embedding), dim=-1))
             else:
-                x = embed + self.embed_positions(src_tokens)
+                x = embed + self.embed_positions(src_tokens)+ langauge_embedding
         if self.layernorm_embedding is not None:
             x = self.layernorm_embedding(x)
         x = self.dropout_module(x)

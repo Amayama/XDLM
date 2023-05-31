@@ -63,7 +63,7 @@ else
     DATA_TAG=null
 fi
 
-TASK=diffusion_translation
+TASK=diffusion_para_translation
 CRITERION=diffusion_loss
 CKPT_DIR=checkpoints/$DATASET"_"$MODEL"_checkpoints_"$SUFFIX
 SPECIFIC_ARGS="

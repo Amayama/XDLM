@@ -181,7 +181,7 @@ def collate(
     return batch
 
 
-class LanguagePairDataset(FairseqDataset):
+class LanguageParaDataset(FairseqDataset):
     """
     A pair of torch.utils.data.Datasets.
 
@@ -330,58 +330,6 @@ class LanguagePairDataset(FairseqDataset):
 
     def get_batch_shapes(self):
         return self.buckets
-    
-    def mask_out(self, x, lengths):
-        """
-        Decide of random words to mask out, and what target they get assigned.
-        """
-        #logger.info(x.size())
-        slen= x.size()[0]
-        # TODO: 整理需要使用的参数
-        # word_pred, mask_scores, sample_alpha, n_words, mask_index, 
-        # define target words to predict
-        if self.sample_alpha == 0:
-            flag=0
-            while flag==0:
-                pred_mask = np.random.rand(slen) <= self.word_pred
-                pred_mask = torch.from_numpy(pred_mask.astype(np.uint8))
-                pred_mask[0] = 0  # TODO: remove
-                if 1 in pred_mask:
-                    flag=1
-        else:
-            x_prob = self.mask_scores[x.flatten()]
-            n_tgt = math.ceil(self.word_pred * slen)
-            tgt_ids = np.random.choice(len(x_prob), n_tgt, replace=False, p=x_prob / x_prob.sum())
-            pred_mask = torch.zeros(slen, dtype=torch.uint8)
-            pred_mask[tgt_ids] = 1
-            pred_mask = pred_mask.view(slen)
-
-        # do not predict padding
-        pred_mask[x == self.pad_index] = 0
-        pred_mask[0] = 0  # TODO: remove
-        self.fp16=False
-        # mask a number of words == 0 [8] (faster with fp16)
-        if self.fp16:
-            pred_mask = pred_mask.view(-1)
-            n1 = pred_mask.sum().item()
-            n2 = max(n1 % 8, 8 * (n1 // 8))
-            if n2 != n1:
-                pred_mask[torch.nonzero(pred_mask).view(-1)[:n1 - n2]] = 0
-            pred_mask = pred_mask.view(slen)
-            assert pred_mask.sum().item() % 8 == 0
-
-        # generate possible targets / update x input
-        _x_real = x[pred_mask]
-        _x_rand = _x_real.clone().random_(self.n_words)
-        _x_mask = _x_real.clone().fill_(self.mask_index)
-        probs = torch.multinomial(self.pred_probs, len(_x_real), replacement=True)
-        _x = _x_mask * (probs == 0).long() + _x_real * (probs == 1).long() + _x_rand * (probs == 2).long()
-        x = x.masked_scatter(pred_mask, _x)
-        assert 0 <= x.min() <= x.max() < self.n_words
-        assert x.size()[0] == slen
-        assert pred_mask.size()[0] == slen
-
-        return x, _x_real, pred_mask
 
     def __getitem__(self, index):
         tgt_item = self.tgt[index] if self.tgt is not None else None
@@ -409,23 +357,24 @@ class LanguagePairDataset(FairseqDataset):
             if self.src[index][-1] == eos:
                 src_item = self.src[index][:-1]
         # 在这里加入xlm
-        final_tgt= torch.cat([src_item,tgt_item])
-        final_tgt_len=src_item.shape[0]+tgt_item.shape[0]
         src_pos=torch.arange(1,src_item.shape[0]+1)
+        src_len=src_item.shape[0]
         tgt_pos=torch.arange(1,tgt_item.shape[0]+1)
-        final_pos=torch.cat([src_pos,tgt_pos])
-        final_lang= torch.zeros(final_tgt_len)
+        # Thanks . <PAD> Danke . <pad>
+        # 0,1,0,1, 0,0,0
+        #<EN> <DE>
+        final_lang= torch.zeros(src_len)
         final_lang[:src_item.shape[0]]=1
-        final_lang[src_item.shape[0]:final_tgt_len]=2
-        masked_src, real_src, mask_pred=self.mask_out(final_tgt, final_tgt_len)
+        
+        # masked_src, real_src, mask_pred=self.mask_out(final_tgt, final_tgt_len)
         #logger.info(masked_src)
         example = {
             "id": index,
-            "source": masked_src,
-            "target": final_tgt,
-            "position_emb":final_pos,
+            "source": src_item,
+            "target": tgt_item,
+            "position_emb":src_pos,
             "language_emb":final_lang,
-            "len":final_tgt_len
+            "len":src_len,
         }
         if self.align_dataset is not None:
             example["alignment"] = self.align_dataset[index]

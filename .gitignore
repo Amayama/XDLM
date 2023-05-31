@@ -64,3 +64,6 @@ wmt14_ende/
 fairseq/wiki_en
 wiki_en/
 fairseq/wmt14_ende
+fairseq/para
+preprocess_data/data
+process_data

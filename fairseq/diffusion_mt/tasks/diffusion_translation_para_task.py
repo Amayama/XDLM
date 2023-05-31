@@ -7,12 +7,23 @@ from dataclasses import dataclass, field
 import torch
 from fairseq import utils
 from fairseq.dataclass import ChoiceEnum
-from fairseq.data import LanguagePairDataset
+from fairseq.data import (
+    AppendTokenDataset,
+    ConcatDataset,
+    LanguageParaDataset,
+    PrependTokenDataset,
+    StripTokenDataset,
+    TruncateDataset,
+    data_utils,
+    encoders,
+    indexed_dataset,
+)
+import itertools
+import os
 from fairseq.tasks import register_task
 from fairseq.tasks.translation import (
     TranslationConfig,
     TranslationTask,
-    load_langpair_dataset,
 )
 
 Q_SAMPLE_CHOICES = ChoiceEnum(["default", "coupled", "multi-sample", "multi-step"])
@@ -136,7 +147,7 @@ def load_langpair_dataset(
             )
 
     tgt_dataset_sizes = tgt_dataset.sizes if tgt_dataset is not None else None
-    return LanguagePairDataset(
+    return LanguageParaDataset(
         src_dataset,
         src_dataset.sizes,
         src_dict,
@@ -152,9 +163,9 @@ def load_langpair_dataset(
         pad_to_multiple=pad_to_multiple,
         
     )
-    
+
 @dataclass
-class DiffusionMLMConfig(TranslationConfig):
+class DiffusionTranslationConfig(TranslationConfig):
     # Diffusion arch. arguments
     timestep_emb_type: str = field(
         default="sinusoidal", 
@@ -241,13 +252,13 @@ class DiffusionMLMConfig(TranslationConfig):
         metadata={"help": "Load EMA model weights for generation inference."}
     )
 
-@register_task("diffusion_mlm", dataclass=DiffusionMLMConfig)
-class DiffusionMLMTask(TranslationTask):
+@register_task("diffusion_para_translation", dataclass=DiffusionTranslationConfig)
+class DiffusionParaTranslationTask(TranslationTask):
     """
     Translation (Sequence Generation) task for Discrete Diffusion Models
     """
 
-    cfg: DiffusionMLMConfig
+    cfg: DiffusionTranslationConfig
 
     def __init__(self, cfg: TranslationConfig, src_dict, tgt_dict):
         super().__init__(cfg, src_dict, tgt_dict)
@@ -331,7 +342,7 @@ class DiffusionMLMTask(TranslationTask):
                 "Constrained decoding with the diffusion_translation task is not supported"
             )
 
-        return LanguagePairDataset(
+        return LanguageParaDataset(
             src_tokens, src_lengths, self.source_dictionary, append_bos=True
         )
 
@@ -384,7 +395,7 @@ class DiffusionMLMTask(TranslationTask):
         for i in range(len(gen_out)):
             hyps.append(decode(gen_out[i][0]["tokens"]))
             refs.append(
-                decode(
+                decode( 
                     utils.strip_pad(sample["target"][i], self.tgt_dict.pad()),
                     escape_unk=True,  # don't count <unk> as matches to the hypo
                 )
