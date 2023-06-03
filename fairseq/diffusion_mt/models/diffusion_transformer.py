@@ -36,7 +36,6 @@ class DiffusionTransformerModel(FairseqNATModel):
 
     def __init__(self, args, encoder, decoder):
         super().__init__(args, encoder, decoder)
-        logger.info(encoder)
         if self.args.time_sampler_type == "uniform":
             self.time_sampler = UniformSampler(self.args.num_diffusion_timesteps)
         elif self.args.time_sampler_type == "is":
@@ -175,7 +174,7 @@ class DiffusionTransformerModel(FairseqNATModel):
         parser.add_argument(
             '--in-pretrain',
             action='store_true',
-            default=False,
+            default=True,
             help="define whether predict the output"
         )
 

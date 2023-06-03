@@ -19,6 +19,7 @@ class DiffusionGenerator(object):
         retain_history=False,
         reranking=False,
         diffusion=None,
+        in_pretrain=False,
         decoder_options=None,
         return_all_cands=False,
     ):
@@ -51,6 +52,7 @@ class DiffusionGenerator(object):
         self.diffusion = diffusion
         self.decoder_options = decoder_options
         self.return_all_cands = return_all_cands
+        self.in_pretrain=in_pretrain
 
     def generate_batched_itr(
         self,
@@ -125,14 +127,13 @@ class DiffusionGenerator(object):
         src_position_emb=sample['net_input']['src_position_emb']
         src_language_emb=sample['net_input']['src_language_emb']
         bsz, src_len = src_tokens.size()
-
         # initialize
         encoder_out = model.forward_encoder([src_tokens, src_position_emb,src_language_emb,src_lengths,])
         # TODO: ADD PRETRAIN PARAMS!
         # in_pretrain here
-        prev_decoder_out = model.initialize_output_tokens(encoder_out, src_tokens,src_lengths,False)
+        prev_decoder_out = model.initialize_output_tokens(encoder_out, src_tokens,src_lengths,self.in_pretrain)
         # TODO: 回来改这个参数
-        if True:
+        if not self.in_pretrain:
             tgt_language_emb=torch.zeros(prev_decoder_out[0].shape)
             tgt_language_emb=tgt_language_emb.fill_(2)
             tgt_language_emb=tgt_language_emb.long()
@@ -203,7 +204,6 @@ class DiffusionGenerator(object):
                 step=step,
                 max_step=self.max_iter,
             )
-
             decoder_out = model.forward_decoder(
                 prev_decoder_out, encoder_out,tgt_language_emb,tgt_language_emb, **decoder_options
             )
@@ -282,7 +282,6 @@ class DiffusionGenerator(object):
             )
             sent_idxs = sent_idxs[not_terminated]
             prev_output_tokens = prev_decoder_out.output_tokens.clone()
-
         if self.beam_size > 1:
             if reranker is not None:
                 finalized = self.rerank(

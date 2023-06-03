@@ -47,12 +47,12 @@ elif [[ $DATASET == "wmt14" ]]; then
     NUM_GPUS=$(echo $CUDA_VISIBLE_DEVICES | awk 'BEGIN{FS=","};{print NF}')
     UPDATE_FREQ=$(( 32 / $NUM_GPUS )) # maintain ~128k tokens
     DATA_SPECIFIC_ARGS="--warmup-updates 30000 --max-update 300000 --max-tokens 4096 --update-freq $UPDATE_FREQ --dropout 0.2"
-elif [[ $DATASET == "opus" ]]; then
-    DATA_TAG=data-bin/opus
+elif [[ $DATASET == "para" ]]; then
+    DATA_TAG=data-bin/para
     ARCH=diffusion_transformer_wmt
     NUM_GPUS=$(echo $CUDA_VISIBLE_DEVICES | awk 'BEGIN{FS=","};{print NF}')
     UPDATE_FREQ=$(( 32 / $NUM_GPUS )) # maintain ~128k tokens
-    DATA_SPECIFIC_ARGS="--warmup-updates 30000 --max-update 300000 --max-tokens 512 --update-freq $UPDATE_FREQ --dropout 0.2"
+    DATA_SPECIFIC_ARGS="--warmup-updates 30000 --max-update 300000 --max-tokens 1024 --update-freq $UPDATE_FREQ --dropout 0.2"
 elif [[ $DATASET == "wmt16" ]]; then
     DATA_TAG=data-bin/wmt16_enro
     ARCH=diffusion_transformer_wmt
@@ -67,7 +67,7 @@ TASK=diffusion_translation
 CRITERION=diffusion_loss
 CKPT_DIR=checkpoints/$DATASET"_"$MODEL"_checkpoints_"$SUFFIX
 SPECIFIC_ARGS="
-    --user-dir diffusion_mt --num-diffusion-timesteps 50 --diffusion-type $MODEL $@
+    --user-dir diffusion_mt --num-diffusion-timesteps 50 --diffusion-type $MODEL $@ 
     "
 
 if ! "$GENERATE_ONLY"; then
@@ -75,8 +75,10 @@ if ! "$GENERATE_ONLY"; then
         --save-dir $CKPT_DIR \
         --ddp-backend=legacy_ddp \
         --task $TASK \
+        --in-pretrain \
         --criterion $CRITERION \
         --arch $ARCH \
+        --in-pretrain \
         --share-all-embeddings \
         --optimizer adam --adam-betas '(0.9,0.98)' \
         --lr 0.0001 --stop-min-lr '1e-09' \
@@ -93,7 +95,7 @@ if ! "$GENERATE_ONLY"; then
         --save-interval-updates 10000 \
         --keep-interval-updates 10 \
         --keep-last-epochs 2 \
-        --max-tokens-valid=512 \
+        --max-tokens-valid=1024 \
         $DATA_SPECIFIC_ARGS $SPECIFIC_ARGS
 fi
 

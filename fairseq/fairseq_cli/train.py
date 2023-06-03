@@ -43,9 +43,7 @@ from fairseq.trainer import Trainer
 def main(cfg: FairseqConfig) -> None:
     if isinstance(cfg, argparse.Namespace):
         cfg = convert_namespace_to_omegaconf(cfg)
-
     utils.import_user_module(cfg.common)
-
     if (
         distributed_utils.is_master(cfg.distributed_training)
         and "job_logging_cfg" in cfg

@@ -187,6 +187,7 @@ class DiffusionTranslationTask(TranslationTask):
             adaptive=not getattr(args, "iter_decode_force_max_iter", False),
             retain_history=getattr(args, "retain_iter_history", False),
             decoder_options=decoder_option_args,
+            in_pretrain=getattr(args, "in_pretrain",False),
             return_all_cands=return_all_cands,
         )
 
