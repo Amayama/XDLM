@@ -98,8 +98,15 @@ def load_langpair_dataset(
         tgt_dataset = data_utils.load_indexed_dataset(
             prefix + tgt, tgt_dict, dataset_impl
         )
-        if tgt_dataset is not None:
-            tgt_datasets.append(tgt_dataset)
+        if truncate_source:
+            tgt_dataset = AppendTokenDataset(
+                TruncateDataset(
+                    StripTokenDataset(tgt_dataset, tgt_dict.eos()),
+                    max_target_positions - 1,
+                ),
+                tgt_dict.eos(),
+            )
+        tgt_datasets.append(tgt_dataset)
 
         logger.info(
             "{} {} {}-{} {} examples".format(
@@ -109,7 +116,6 @@ def load_langpair_dataset(
 
         if not combine:
             break
-
     assert len(src_datasets) == len(tgt_datasets) or len(tgt_datasets) == 0
     # logger.info(len(src_datasets))--> 1
     if len(src_datasets) == 1:

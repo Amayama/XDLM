@@ -143,8 +143,9 @@ class DiffusionTranslationTask(TranslationTask):
             upsample_primary=self.cfg.upsample_primary,
             left_pad_source=self.cfg.left_pad_source,
             left_pad_target=self.cfg.left_pad_target,
-            max_source_positions=self.cfg.max_source_positions,
-            max_target_positions=self.cfg.max_target_positions,
+            max_source_positions=int(self.cfg.max_source_positions/4),
+            max_target_positions=int(self.cfg.max_target_positions/4),
+            truncate_source=True,
             prepend_bos=True,
         )
         
