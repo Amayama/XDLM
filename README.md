@@ -2,6 +2,12 @@
 
 This repository contains the official implementation of paper [A Reparameterized Discrete Diffusion Model for Text Generation](https://arxiv.org/abs/2302.05737).
 
+## Build vocabulary for source data
+
+Use the tools provided by XLM, which will be introduced in another repository.
+
+After the preprocessing of opus-de-en dataset, we would obtain a vocab with 50400 tokens.
+
 ## Dependencies
 
 The codebase is implemented with [FairSeq](https://github.com/facebookresearch/fairseq). To install the dependencies, run (recommended in a [virtual environment](https://docs.python.org/3/library/venv.html)) the following commands:
@@ -20,6 +26,56 @@ cd ..
 > **Note**
 > The environment is tested with Python 3.8.10, PyTorch 1.10.0/1.12.0, and CUDA 11.3.
 > Also note our fork of fairseq modifies several files in the original codebase; using more recent versions of fairseq might lead to unexpected dependency conflicts.
+
+## Preprocess of source
+
+### pretrain stage-para dataset
+
+For the preprocess of opus dataset, use following instruction. Also, the processed data-bin/para data is available [here](https://drive.google.com/file/d/154WQ6LS_qlbPCUenJR0PBitz6wepIKSR/view?usp=sharing).
+
+```
+
+TEXT=para
+fairseq-preprocess --joined-dictionary \
+    --source-lang en --target-lang de \
+    --trainpref $TEXT/train.en-de --validpref $TEXT/valid.en-de --testpref $TEXT/test.en-de \
+    --destdir data-bin/para --thresholdtgt 0 --thresholdsrc 0 \
+    --workers 20
+
+
+```
+
+### Finetune stage-wmt4 dataset
+
+For wmt14 dataset, use following instructions. Also, the processed data-bin/wmt14-ende data is available [here](https://drive.google.com/file/d/1TxAL9KOdR1LHtUmQHPq6fG_xUt3oMl6x/view?usp=sharing).
+
+```
+wget http://dl.fbaipublicfiles.com/nat/original_dataset.zip
+unzip original_dataset.zip
+TEXT=wmt14_ende
+fairseq-preprocess --joined-dictionary \
+    --source-lang en --target-lang de \
+    --trainpref $TEXT/train.en-de --validpref $TEXT/valid.en-de --testpref $TEXT/test.en-de \
+    --destdir data-bin/wmt14_ende --thresholdtgt 0 --thresholdsrc 0 \
+    --workers 20
+
+```
+
+Don't forget to replace the `dict.en.txt` and `dict.de.txt` in the downloaded folder as the vocab built in the previous stage before apply `fairseq-preprocess`
+
+## Pretrain and Finetune stage
+
+### Pretrain code
+
+```
+bash experiments/mt_train.sh -m reparam-multinomial -d para -s default -e True --not-diffusing-special-sym --q-sample-mode coupled --store-ema --label-smoothing 0.1 --reweighting-type linear
+```
+
+### Finetune Code
+
+```
+bash experiments/mt_train_finetune.sh -m reparam-multinomial -d wmt14 -s default -e True --not-diffusing-special-sym --q-sample-mode coupled --store-ema --label-smoothing 0.1 --reweighting-type linear
+```
 
 ## Basic Usage of the Discrete-diffusion Library
 
@@ -62,12 +118,12 @@ class DiscreteDiffusion(nn.Module):
 
         Returns:
             return a dict of relevant outputs including x_t.
-          
+        
         """
 
     def compute_losses(self, inputs, **kwargs):
         """
-      
+    
         Compute the loss objective KL(q||p) to train our generative process.
 
         Args:
@@ -77,24 +133,24 @@ class DiscreteDiffusion(nn.Module):
 
         Returns:
             possibly return a dict of relevant outputs, including the loss used for training.
-          
+        
         """
 
     def sample_step(self, decoder_out, denoising_fn, **kwargs):
         """
         Given a time step t, start from x_t and sample x_{t-k} from q(x_{t-k} | x_t).
-      
+    
         Args:
             decoder_out: a namedtuple that contains decoding info, including
                 - x_t: token ids with shape [B, N]
                 - t: scalar timesteps
                 - max_steps: the maximum number of decoding steps
                 - ...
-          
+        
             denoising_fn: a function that takes in x_t and t and returns model logits
 
             kwargs: other arguments that are used to control decoding.
-      
+    
         Returns:
             return a new decoder_out namedtuple.
         """
