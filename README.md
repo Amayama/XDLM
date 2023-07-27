@@ -157,10 +157,10 @@ We also provide the checkpoints of our trained models.
 
 | Dataset  | Model    |                                                              Checkpoint link                                                              |
 | -------- | -------- | :----------------------------------------------------------------------------------------------------------------------------------------: |
-| Opus     | Pretrain | [link](https://connecthkuhk-my.sharepoint.com/:f:/g/personal/linzheng_connect_hku_hk/EpAzao9L5XBMsef5LNZ1iXkB36Mp9V2gQGOwbopgPaOTVA?e=OraA81) |
-| IWSLT'14 | Finetune | [link](https://connecthkuhk-my.sharepoint.com/:f:/g/personal/linzheng_connect_hku_hk/Eg1tqijPqkpNvc0Lai-BDE0Btc8L4UIJ-7oedCp4MXDPKw?e=liuASC) |
-| WMT'14   | Finetune | [link](https://connecthkuhk-my.sharepoint.com/:f:/g/personal/linzheng_connect_hku_hk/EmCnWDgoj8JKmji1QE8UlkMB-3ow1aI8Bdo78-C7LqU_hA?e=DNahYn) |
-|          |          |                                                                                                                                            |
+| Opus     | Pretrain | [link](https://drive.google.com/file/d/1Q-60rLvF_eqlY96OYpc9VMumd-LfU1Zu/view?usp=drive_link) |
+| IWSLT'14 | Finetune | [link](https://drive.google.com/file/d/1Y4_6Sim6eVB3smOYGQQxSG4wnH-SBcjP/view?usp=drive_link) |
+| WMT'14   | Finetune | [link](https://drive.google.com/file/d/1vjymdwrsTtG4YjcwwlXuvB0oxh7_Gqa1/view?usp=drive_link) |
+                                                                                                                                                   |
 
 ## Citation
 
